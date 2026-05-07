@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from itertools import product
 
-
 # ---------------------------------------------------------------------------
 # Type aliases (for readability in signatures and docstrings)
 #
@@ -171,9 +170,14 @@ def is_applicable(state: State, action: Action) -> bool:
 
     Tip: frozenset supports the .issubset() method and the .isdisjoint() method.
     """
-    ### Your code here ###
-    return False
-    ### End of your code ###
+    # TODO: PUNTO 1b - Implementar verificación de aplicabilidad de una acción
+    # Una acción es aplicable si:
+    # 1. Todas las precondiciones positivas están presentes en el estado
+    #    (action.precond_pos.issubset(state))
+    # 2. Ninguna precondición negativa está presente en el estado
+    #    (action.precond_neg.isdisjoint(state))
+    # Retornar True si ambas condiciones se cumplen, False en caso contrario
+    return action.precond_pos.issubset(state) and action.precond_neg.isdisjoint(state)
 
 
 def apply_action(state: State, action: Action) -> State:
@@ -185,9 +189,13 @@ def apply_action(state: State, action: Action) -> State:
     Tip: frozenset supports set arithmetic: `|` (union) and `-` (difference).
     The order matters: first remove del_list, then add add_list.
     """
-    ### Your code here ###
-    return frozenset({})
-    ### End of your code ###
+    # TODO: PUNTO 1b - Implementar la aplicación de una acción a un estado
+    # El nuevo estado se calcula como: RESULT(s, a) = (s − DEL(a)) ∪ ADD(a)
+    # Pasos:
+    # 1. Remover los fluentes en action.del_list del estado actual
+    # 2. Agregar los fluentes en action.add_list al resultado
+    # Usar operaciones de conjuntos: `-` para diferencia y `|` para unión
+    return (state - action.del_list) | action.add_list
 
 
 def get_all_groundings(domain: list[ActionSchema], objects: Objects) -> list[Action]:
@@ -240,6 +248,11 @@ def get_applicable_actions(
          Then call action_schema.ground(binding) and is_applicable(state, grounded).
          Or use get_all_groundings() and filter the results by applicability.
     """
-    ### Your code here ###
-    return []
-    ### End of your code ###
+    # TODO: PUNTO 1b - Implementar la función que retorna todas las acciones aplicables
+    # Estrategia recomendada:
+    # 1. Obtener todas las acciones instanciadas usando get_all_groundings(domain, objects)
+    # 2. Filtrar solo aquellas que son aplicables en el estado actual usando is_applicable
+    # 3. Retornar la lista de acciones aplicables
+    # Esto es equivalente a: [action for action in all_groundings if is_applicable(state, action)]
+    all_groundings = get_all_groundings(domain, objects)
+    return [action for action in all_groundings if is_applicable(state, action)]
