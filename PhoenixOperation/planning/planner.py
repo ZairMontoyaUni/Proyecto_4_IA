@@ -1,4 +1,5 @@
 from __future__ import annotations
+from planning import utils
 
 from collections.abc import Callable
 
@@ -138,6 +139,98 @@ def forwardBFS(problem: Problem) -> list[Action]:
          avoid revisiting the same state twice (graph search, not tree search).
     """
     ### Your code here ###
+
+    """
+    PRIMERA VERSIÓN DEL CÓDIGO (NO ESCRITO POR IA)
+
+    cola = utils.Queue()
+    visitados = set()
+
+    inicio = problem.getStartState()
+
+    # En la cola voy a meter el nodo con la lista de acciones para llegar hasta ahí. 
+    cola.push((inicio, []))
+    visitados.add(inicio)
+
+    while not cola.isEmpty():
+
+        estadoActual, listaAcciones = cola.pop()
+        
+        if problem.isGoalState(estadoActual):
+            return listaAcciones
+        
+        for siguienteEstado, accion, costo in problem.getSuccessors(estadoActual):
+            if siguienteEstado not in visitados:
+                visitados.add(siguienteEstado)
+                nuevaListaAcciones = listaAcciones + [accion]
+                cola.push((siguienteEstado, nuevaListaAcciones))
+
+    return []
+    """
+
+    """
+    SEGUNDA VERSIÓN DE CÓDIGO (CON AYUDA DE IA)
+
+    prompt: Quiero a este código le pongas comentarios para que sea más fácil de entender y 
+    dime qué refinamientos harías y por qué. Si tiene algún error también dímelo.
+
+    (Código original pegado)
+
+    respuesta: Refinamientos posibles:
+    El único refinamiento que vale la pena mencionar es reemplazar listaAcciones + [accion] 
+    por guardar un diccionario estado -> (padre, accion) y reconstruir el camino al final. Esto evita 
+    copiar la lista en cada expansión y reduce el uso de memoria. Sin embargo, para este dominio 
+    la diferencia no es significativa y el código actual es más fácil de leer y entender, 
+    así que no es necesario cambiarlo.
+    """
+    cola = utils.Queue()
+    visitados = set()
+
+    inicio = problem.getStartState()
+
+    # Cada elemento de la cola es (estado, lista_de_acciones_para_llegar_aquí)
+    # Empezamos desde el estado inicial con un plan vacío
+    cola.push((inicio, []))
+    visitados.add(inicio)
+
+    while not cola.isEmpty():
+
+        estadoActual, listaAcciones = cola.pop()
+        
+        # Si el estado actual satisface el objetivo, el plan está completo
+        if problem.isGoalState(estadoActual):
+            return listaAcciones
+        
+        # Expandir el nodo: obtener todos los estados alcanzables desde aquí
+        for siguienteEstado, accion, costo in problem.getSuccessors(estadoActual):
+            if siguienteEstado not in visitados:
+                # Marcar como visitado al insertar evita duplicados en la cola
+                visitados.add(siguienteEstado)
+                # Crear el nuevo historial de acciones extendiendo el actual
+                nuevaListaAcciones = listaAcciones + [accion]
+                cola.push((siguienteEstado, nuevaListaAcciones))
+
+    # No se encontró ningún plan válido
+    return []
+
+    """
+    ANÁLISIS (Punto 2c):
+    
+    Para este análisis se va a tomar el layout tinyBase (5x7) y el layout warehouseRescue (15x12)
+
+    Para tinyBase se hizo una exploración de 345 estados y se encontró un plan de 9 pasos,
+    mientras que para warehouseRescue se hizo una eploración de 11428 estados y se encontró
+    un plan de 31 pasos.
+
+    Como se puede ver, el número de estados incrementó aproximadamente 33 veces para un plan que
+    solo aumentó aproximadamente 4 veces. Esto muestra que el crecimiento de los estados a explorar
+    es mucho mayor que el crecimiento del espacio en sí y el plan generado debido a que cada vez existen 
+    muchas más combinaciones de estados que se pueden hacer para llegar a un estado específico. 
+    Esto hace que los problemas donde el espaco es muy grande sean intratables sin heurísticas. 
+
+    Búsqueda hacia adelante sin heurísticas es completo y siempre encuentra el mejor camino pero 
+    claramente no es escalable. 
+    """
 
     ### End of your code ###
 
