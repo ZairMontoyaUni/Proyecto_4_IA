@@ -175,13 +175,6 @@ def forwardBFS(problem: Problem) -> list[Action]:
     dime qué refinamientos harías y por qué. Si tiene algún error también dímelo.
 
     (Código original pegado)
-
-    respuesta: Refinamientos posibles:
-    El único refinamiento que vale la pena mencionar es reemplazar listaAcciones + [accion] 
-    por guardar un diccionario estado -> (padre, accion) y reconstruir el camino al final. Esto evita 
-    copiar la lista en cada expansión y reduce el uso de memoria. Sin embargo, para este dominio 
-    la diferencia no es significativa y el código actual es más fácil de leer y entender, 
-    así que no es necesario cambiarlo.
     """
     cola = utils.Queue()
     visitados = set()
@@ -310,6 +303,78 @@ def aStarPlanner(
     """
     ### Your code here ###
 
+    """
+    PRIMERA VERSIÓN DEL CÓDIGO (NO ESCRITO POR IA). Basada en implementación anterior del punto 2.
+
+    cola = utils.PriorityQueue()
+    visitados = set()
+
+    inicio = problem.getStartState()
+    hInicio = heuristic(inicio, problem.goal, problem.domain, problem.objects)
+
+    cola.push((inicio, [], 0), 0 + hInicio)
+    visitados.add(inicio)
+
+    while not cola.isEmpty():
+
+        estadoActual, listaAcciones, costoAcumulado = cola.pop()
+        
+        if problem.isGoalState(estadoActual):
+            return listaAcciones
+        
+        for siguienteEstado, accion, costo in problem.getSuccessors(estadoActual):
+            if siguienteEstado not in visitados:
+                visitados.add(siguienteEstado)
+                nuevaListaAcciones = listaAcciones + [accion]
+                h = heuristic(siguienteEstado, problem.goal, problem.domain, problem.objects)
+                nuevoCosto = costoAcumulado + costo
+                cola.push((siguienteEstado, nuevaListaAcciones, nuevoCosto), nuevoCosto + h)
+
+    return []
+
+    """
+    """
+    SEGUNDA VERSIÓN DE CÓDIGO (CON AYUDA DE IA)
+
+    prompt: Escribí este código para A*. Ayúdame a mejorarlo e identificar errores. Lo que corrijas dime 
+    por qué lo corregiste e incluye comentarios:
+
+    (Código original pegado)
+    """
+
+    cola = PriorityQueue()
+    # Diccionario estado -> mejor costo g visto, para evitar expansiones subóptimas
+    mejor_g = {}
+
+    inicio = problem.getStartState()
+    h_inicio = heuristic(inicio, problem.goal, problem.domain, problem.objects)
+
+    cola.push((inicio, [], 0), 0 + h_inicio)
+    mejor_g[inicio] = 0
+
+    while not cola.isEmpty():
+
+        estadoActual, listaAcciones, costoAcumulado = cola.pop()
+
+        # Si ya encontramos un camino más barato a este estado, ignorar
+        if costoAcumulado > mejor_g.get(estadoActual, float('inf')):
+            continue
+
+        if problem.isGoalState(estadoActual):
+            return listaAcciones
+
+        for siguienteEstado, accion, costo in problem.getSuccessors(estadoActual):
+            nuevoCosto = costoAcumulado + costo
+
+            # Solo explorar si encontramos un camino más barato al siguiente estado
+            if nuevoCosto < mejor_g.get(siguienteEstado, float('inf')):
+                mejor_g[siguienteEstado] = nuevoCosto
+                nuevaListaAcciones = listaAcciones + [accion]
+                h = heuristic(siguienteEstado, problem.goal, problem.domain, problem.objects)
+                # Prioridad = costo real acumulado + estimación heurística
+                cola.push((siguienteEstado, nuevaListaAcciones, nuevoCosto), nuevoCosto + h)
+
+    return []
     ### End of your code ###
 
 
