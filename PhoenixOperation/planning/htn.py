@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from collections import deque
+
 from planning.pddl import Action, Problem, apply_action, is_applicable
+from planning.domain import MOVE, PICKUP, PUTDOWN, RESCUE, SETUP_SUPPLIES
+from planning.utils import Queue
 
 
 # ---------------------------------------------------------------------------
@@ -52,19 +56,46 @@ def hierarchicalSearch(problem: Problem, hlas: list[HLA]) -> list[Action]:
     replace it with one of its refinements. Continue until the plan
     is fully primitive and achieves the goal when executed from the
     initial state.
-
-    Returns a list of primitive Action objects, or [] if no plan found.
-
-    Tip: The search space consists of (partial plan, current plan index) pairs.
-         Use a Queue (BFS) to explore all refinement choices fairly.
-         A plan is a solution when:
-           1. It contains only primitive actions (is_plan_primitive), AND
-           2. Executing it from the initial state reaches a goal state.
-         To simulate execution, apply each action in order using apply_action().
     """
-    ### Your code here ###
+    if not hlas:
+        return []
 
-    ### End of your code ###
+    queue = Queue()
+    queue.push([hlas[0]])
+
+    while not queue.isEmpty():
+        plan = queue.pop()
+
+        # Find the first non-primitive step (HLA) in the plan.
+        first_hla_idx = None
+        for i, step in enumerate(plan):
+            if not is_primitive(step):
+                first_hla_idx = i
+                break
+
+        if first_hla_idx is None:
+            # Plan is fully primitive: simulate it from the initial state
+            # and check whether the goal is reached.
+            state = problem.getStartState()
+            executable = True
+            for action in plan:
+                if not is_applicable(state, action):
+                    executable = False
+                    break
+                state = apply_action(state, action)
+            if executable and problem.isGoalState(state):
+                return plan
+            continue
+
+        # Replace the first HLA with each of its refinements.
+        hla = plan[first_hla_idx]
+        prefix = plan[:first_hla_idx]
+        suffix = plan[first_hla_idx + 1:]
+        for refinement in hla.refinements:
+            new_plan = prefix + list(refinement) + suffix
+            queue.push(new_plan)
+
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -76,18 +107,134 @@ def build_htn_hierarchy(problem: Problem) -> list[HLA]:
     """
     Build HTN HLAs for the rescue domain.
 
-    The hierarchy defines four HLA types:
-      - Navigate(from, to):       Move the robot step by step from one cell to another
-      - PrepareSupplies(s, m):    Collect supplies and set them up at the medical post
-      - ExtractPatient(p, m):     Pick up the patient and bring them to the medical post
-      - FullRescueMission(s,p,m): Complete one rescue: prepare supplies + extract + rescue
+    Hierarchy:
+      Navigate(from, to)        → sequence of Move actions along a shortest path
+      PrepareSupplies(s, m)     → Navigate, PickUp(s), Navigate, SetupSupplies
+      ExtractPatient(p, m)      → Navigate, PickUp(p), Navigate, PutDown(p)
+      FullRescueMission(s,p,m)  → PrepareSupplies, ExtractPatient, Rescue
 
-    Refinements are built from the ground state to generate concrete Action objects.
-
-    Tip: Refinements for Navigate are all single-step Move sequences between
-         adjacent cells. PrepareSupplies and ExtractPatient chain Navigate HLAs
-         with primitive PickUp, SetupSupplies, PutDown, and Rescue actions.
+    For MultiRescueProblem the root HLA chains one FullRescueMission per
+    patient, in input order, each consuming one supply.
     """
-    ### Your code here ###
+    objects = problem.objects
+    initial_state = problem.initial_state
 
-    ### End of your code ###
+    if not objects.get("robots") or not objects.get("medical_posts"):
+        return []
+
+    robot = objects["robots"][0]
+    supplies = objects["supplies"]
+    patients = objects["patients"]
+    medical_post = objects["medical_posts"][0]
+
+    if not patients or not supplies:
+        return []
+
+    # Position lookup from initial-state At fluents.
+    pos_of: dict[str, tuple[int, int]] = {}
+    for fluent in initial_state:
+        if fluent[0] == "At":
+            pos_of[fluent[1]] = fluent[2]
+
+    # Adjacency map for BFS path finding.
+    adjacency: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    for fluent in initial_state:
+        if fluent[0] == "Adjacent":
+            adjacency.setdefault(fluent[1], []).append(fluent[2])
+
+    robot_start = pos_of[robot]
+
+    # ---- helpers ---------------------------------------------------------
+
+    def shortest_path(a: tuple[int, int], b: tuple[int, int]) -> list[tuple[int, int]] | None:
+        if a == b:
+            return [a]
+        visited = {a}
+        queue: deque = deque([(a, [a])])
+        while queue:
+            cell, path = queue.popleft()
+            for nb in adjacency.get(cell, []):
+                if nb in visited:
+                    continue
+                visited.add(nb)
+                new_path = path + [nb]
+                if nb == b:
+                    return new_path
+                queue.append((nb, new_path))
+        return None
+
+    def make_move(from_cell, to_cell) -> Action:
+        return MOVE.ground({"r": robot, "from_cell": from_cell, "to_cell": to_cell})
+
+    def make_pickup(obj, loc) -> Action:
+        return PICKUP.ground({"r": robot, "obj": obj, "loc": loc})
+
+    def make_putdown(obj, loc) -> Action:
+        return PUTDOWN.ground({"r": robot, "obj": obj, "loc": loc})
+
+    def make_setup(s, loc) -> Action:
+        return SETUP_SUPPLIES.ground({"r": robot, "s": s, "loc": loc})
+
+    def make_rescue(p, loc) -> Action:
+        return RESCUE.ground({"r": robot, "p": p, "loc": loc})
+
+    def navigate_hla(a, b) -> HLA:
+        path = shortest_path(a, b)
+        if path is None:
+            return HLA(f"Navigate({a}->{b})", [])
+        moves = [make_move(path[i], path[i + 1]) for i in range(len(path) - 1)]
+        return HLA(f"Navigate({a}->{b})", [moves])
+
+    def prepare_supplies_hla(s, m_pos, from_pos) -> HLA:
+        s_pos = pos_of[s]
+        return HLA(
+            f"PrepareSupplies({s}@{m_pos})",
+            [[
+                navigate_hla(from_pos, s_pos),
+                make_pickup(s, s_pos),
+                navigate_hla(s_pos, m_pos),
+                make_setup(s, m_pos),
+            ]],
+        )
+
+    def extract_patient_hla(p, m_pos, from_pos) -> HLA:
+        p_pos = pos_of[p]
+        return HLA(
+            f"ExtractPatient({p}@{m_pos})",
+            [[
+                navigate_hla(from_pos, p_pos),
+                make_pickup(p, p_pos),
+                navigate_hla(p_pos, m_pos),
+                make_putdown(p, m_pos),
+            ]],
+        )
+
+    def full_rescue_hla(s, p, m_pos, from_pos) -> HLA:
+        # After PrepareSupplies the robot is at m_pos, so ExtractPatient
+        # starts there.
+        return HLA(
+            f"FullRescueMission({s},{p}@{m_pos})",
+            [[
+                prepare_supplies_hla(s, m_pos, from_pos),
+                extract_patient_hla(p, m_pos, m_pos),
+                make_rescue(p, m_pos),
+            ]],
+        )
+
+    # ---- root HLA --------------------------------------------------------
+
+    if len(patients) == 1:
+        return [full_rescue_hla(supplies[0], patients[0], medical_post, robot_start)]
+
+    # Multi-rescue: chain FullRescueMission per patient (input order).
+    # Each rescue consumes its own supply; if there are fewer supplies than
+    # patients, the extra patients reuse the last supply (will fail unless
+    # SuppliesReady persists — which it does).
+    rescues: list[HLA] = []
+    current_pos = robot_start
+    for i, patient in enumerate(patients):
+        supply = supplies[i] if i < len(supplies) else supplies[-1]
+        rescues.append(full_rescue_hla(supply, patient, medical_post, current_pos))
+        current_pos = medical_post  # robot ends at the medical post after Rescue
+
+    return [HLA("MultiRescue", [rescues])]
