@@ -9,7 +9,9 @@ from planning.pddl import (
     Problem,
     State,
     Objects,
+    apply_action,
     get_all_groundings,
+    is_applicable,
 )
 from planning.utils import Queue, PriorityQueue
 from planning.heuristics import nullHeuristic
@@ -250,7 +252,15 @@ def regress(goal_set: State, action: Action) -> State | None:
          Check relevance first, then check for contradictions, then compute.
     """
     ### Your code here ###
+    if action.add_list.isdisjoint(goal_set):
+        return None
+    if not action.del_list.isdisjoint(goal_set):
+        return None
 
+    regressed_goal = (goal_set - action.add_list) | action.precond_pos
+    if not action.precond_neg.isdisjoint(regressed_goal):
+        return None
+    return frozenset(regressed_goal)
     ### End of your code ###
 
 
@@ -273,7 +283,252 @@ def backwardSearch(problem: Problem) -> list[Action]:
          Pickable) that are false in the initial state — these are dead ends.
     """
     ### Your code here ###
+    static_predicates = {"Adjacent", "MedicalPost", "Pickable"}
 
+    def normalize_goal(goal: State) -> State | None:
+        normalized = set()
+        for fluent in goal:
+            if fluent[0] in static_predicates:
+                if fluent not in problem.initial_state:
+                    return None
+                continue
+            normalized.add(fluent)
+        return frozenset(normalized)
+
+    def is_consistent(goal: State) -> bool:
+        at_by_entity = {}
+        holding_by_robot = {}
+        holding_objects = set()
+        hands_free_robots = set()
+        free_cells = set()
+        rescued_patients = set()
+
+        for fluent in goal:
+            predicate = fluent[0]
+
+            if predicate == "At":
+                entity, cell = fluent[1], fluent[2]
+                if entity in at_by_entity and at_by_entity[entity] != cell:
+                    return False
+                at_by_entity[entity] = cell
+
+            elif predicate == "Holding":
+                robot, obj = fluent[1], fluent[2]
+                if robot in holding_by_robot and holding_by_robot[robot] != obj:
+                    return False
+                holding_by_robot[robot] = obj
+                holding_objects.add(obj)
+
+            elif predicate == "HandsFree":
+                hands_free_robots.add(fluent[1])
+
+            elif predicate == "Free":
+                free_cells.add(fluent[1])
+
+            elif predicate == "Rescued":
+                rescued_patients.add(fluent[1])
+
+        robot_cell = at_by_entity.get("robot")
+        if robot_cell in free_cells:
+            return False
+
+        if not hands_free_robots.isdisjoint(holding_by_robot):
+            return False
+
+        if not holding_objects.isdisjoint(at_by_entity):
+            return False
+
+        if not rescued_patients.isdisjoint(at_by_entity):
+            return False
+
+        if not rescued_patients.isdisjoint(holding_objects):
+            return False
+
+        return True
+
+    def plan_is_valid(plan: list[Action]) -> bool:
+        state = problem.initial_state
+        for action in plan:
+            if not is_applicable(state, action):
+                return False
+            state = apply_action(state, action)
+        return problem.isGoalState(state)
+
+    initial_at = {
+        fluent[1]: fluent[2]
+        for fluent in problem.initial_state
+        if fluent[0] == "At"
+    }
+    adjacency = {}
+    for fluent in problem.initial_state:
+        if fluent[0] == "Adjacent":
+            adjacency.setdefault(fluent[1], []).append(fluent[2])
+    distance_cache = {}
+
+    def distances_to_targets(targets: set) -> dict:
+        key = frozenset(targets)
+        if key in distance_cache:
+            return distance_cache[key]
+
+        distances = {}
+        queue = Queue()
+        for target in targets:
+            distances[target] = 0
+            queue.push(target)
+
+        while not queue.isEmpty():
+            cell = queue.pop()
+            for neighbor in adjacency.get(cell, []):
+                if neighbor in distances:
+                    continue
+                distances[neighbor] = distances[cell] + 1
+                queue.push(neighbor)
+
+        distance_cache[key] = distances
+        return distances
+
+    def object_known_locations(goal: State, obj: object) -> set:
+        locations = {fluent[2] for fluent in goal if fluent[0] == "At" and fluent[1] == obj}
+        if obj in initial_at:
+            locations.add(initial_at[obj])
+        return locations
+
+    def select_subgoal(goal: State) -> object:
+        unsatisfied = goal - problem.initial_state
+
+        for fluent in unsatisfied:
+            if fluent[0] == "Rescued":
+                return fluent
+
+        for fluent in unsatisfied:
+            if fluent[0] == "At" and fluent[1] != "robot":
+                return fluent
+
+        has_holding_goal = any(fluent[0] == "Holding" for fluent in goal)
+        if not has_holding_goal:
+            for fluent in unsatisfied:
+                if fluent[0] == "SuppliesReady" and ("At", "robot", fluent[1]) in goal:
+                    return fluent
+
+        robot_locations = {
+            fluent[2] for fluent in goal if fluent[0] == "At" and fluent[1] == "robot"
+        }
+        for fluent in unsatisfied:
+            if fluent[0] == "Holding":
+                obj_locations = object_known_locations(goal, fluent[2])
+                if robot_locations & obj_locations:
+                    return fluent
+
+        for fluent in unsatisfied:
+            if fluent[0] == "At" and fluent[1] == "robot":
+                return fluent
+
+        for fluent in unsatisfied:
+            if fluent[0] == "Holding":
+                return fluent
+
+        for fluent in unsatisfied:
+            if fluent[0] == "SuppliesReady":
+                return fluent
+
+        return next(iter(unsatisfied))
+
+    def navigation_targets(goal: State) -> set:
+        for fluent in goal:
+            if fluent[0] == "Holding":
+                locations = object_known_locations(goal, fluent[2])
+                if locations:
+                    return locations
+
+        for fluent in goal:
+            if fluent[0] == "SuppliesReady":
+                return {fluent[1]}
+
+        robot_start = initial_at.get("robot")
+        return {robot_start} if robot_start is not None else set()
+
+    def move_gets_closer_to_target(action: Action, selected_goal: object, goal: State) -> bool:
+        if selected_goal[0] != "At" or selected_goal[1] != "robot":
+            return True
+        if not action.name.startswith("Move("):
+            return True
+
+        to_cell = selected_goal[2]
+        from_cells = [
+            fluent[2]
+            for fluent in action.precond_pos
+            if fluent[0] == "At" and fluent[1] == "robot"
+        ]
+        if not from_cells:
+            return True
+
+        targets = navigation_targets(goal)
+        if not targets:
+            return True
+
+        distances = distances_to_targets(targets)
+        from_distance = distances.get(from_cells[0], float("inf"))
+        to_distance = distances.get(to_cell, float("inf"))
+        return from_distance < to_distance
+
+    start_goal = normalize_goal(problem.goal)
+    if start_goal is None or not is_consistent(start_goal):
+        return []
+
+    actions = sorted(
+        [
+            action
+            for action in get_all_groundings(problem.domain, problem.objects)
+            if all(
+                fluent in problem.initial_state
+                for fluent in action.precond_pos
+                if fluent[0] in static_predicates
+            )
+        ],
+        key=lambda action: {
+            "Rescue": 0,
+            "PutDown": 1,
+            "SetupSupplies": 2,
+            "PickUp": 3,
+            "Move": 4,
+        }.get(action.name.split("(", 1)[0], 5),
+    )
+
+    queue = Queue()
+    queue.push((start_goal, []))
+    visited = {start_goal}
+
+    while not queue.isEmpty():
+        current_goal, plan = queue.pop()
+
+        if current_goal.issubset(problem.initial_state):
+            if plan_is_valid(plan):
+                return plan
+            continue
+
+        problem._expanded += 1
+        selected_goal = select_subgoal(current_goal)
+
+        for action in actions:
+            if selected_goal not in action.add_list:
+                continue
+            if not move_gets_closer_to_target(action, selected_goal, current_goal):
+                continue
+
+            next_goal = regress(current_goal, action)
+            if next_goal is None:
+                continue
+
+            next_goal = normalize_goal(next_goal)
+            if next_goal is None or next_goal in visited:
+                continue
+            if not is_consistent(next_goal):
+                continue
+
+            visited.add(next_goal)
+            queue.push((next_goal, [action] + plan))
+
+    return []
     ### End of your code ###
 
 
