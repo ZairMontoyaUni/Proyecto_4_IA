@@ -1,0 +1,193 @@
+
+======================================================================
+  BENCHMARK DE ALGORITMOS DE PLANIFICACIÓN - PUNTO 6 (v2)
+======================================================================
+
+Esta versión maneja inteligentemente los timeouts y combinaciones costosas.
+
+Resultados se guardarán en:
+  - resultados_punto_6.json
+  - resultados_punto_6.csv
+
+======================================================================
+Evaluando layout: tinyBase (complejidad: tiny)
+======================================================================
+  Dimensiones: 5×7
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 9 acc, Estados: 345, Tiempo: 0.018s
+
+  backwardSearch... ✓ Plan: 9 acc, Estados: 9, Tiempo: 0.003s
+
+  aStarPlanner_ignorePreconditions... ✓ Plan: 9 acc, Estados: 252, Tiempo: 0.682s
+
+  aStarPlanner_ignoreDeleteLists... ✓ Plan: 9 acc, Estados: 138, Tiempo: 0.432s
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 9 acc, Estados: 345, Tiempo: 0.018s
+
+  hierarchicalSearch_HTN... ✓ Plan: 9 acc, Tiempo: 0.000s
+
+======================================================================
+Evaluando layout: smallRescue (complejidad: small)
+======================================================================
+  Dimensiones: 10×10
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 23 acc, Estados: 1427, Tiempo: 0.424s
+
+  backwardSearch... ✓ Plan: 23 acc, Estados: 46, Tiempo: 0.017s
+
+  aStarPlanner_ignorePreconditions... ✓ Plan: 23 acc, Estados: 1316, Tiempo: 24.987s
+
+  aStarPlanner_ignoreDeleteLists... ✓ Plan: 23 acc, Estados: 960, Tiempo: 17.644s
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 23 acc, Estados: 1427, Tiempo: 0.450s
+
+  hierarchicalSearch_HTN... ✓ Plan: 23 acc, Tiempo: 0.000s
+
+======================================================================
+Evaluando layout: openRescue (complejidad: medium)
+======================================================================
+  Dimensiones: 12×10
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 26 acc, Estados: 12982, Tiempo: 11.613s
+
+  backwardSearch... ✓ Plan: 26 acc, Estados: 30959, Tiempo: 2.142s
+
+  aStarPlanner_ignorePreconditions... SALTADO (combinación muy costosa)
+
+  aStarPlanner_ignoreDeleteLists... ⏱ TIMEOUT (60s), Estados: 717
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 26 acc, Estados: 12982, Tiempo: 11.439s
+
+  hierarchicalSearch_HTN... ✓ Plan: 26 acc, Tiempo: 0.000s
+
+======================================================================
+Evaluando layout: cornerRescue (complejidad: small)
+======================================================================
+  Dimensiones: 8×9
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 19 acc, Estados: 2248, Tiempo: 0.599s
+
+  backwardSearch... ✓ Plan: 19 acc, Estados: 1020, Tiempo: 0.051s
+
+  aStarPlanner_ignorePreconditions... ⏱ TIMEOUT (30s), Estados: 1512
+
+  aStarPlanner_ignoreDeleteLists... ✓ Plan: 19 acc, Estados: 925, Tiempo: 19.116s
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 19 acc, Estados: 2248, Tiempo: 0.603s
+
+  hierarchicalSearch_HTN... ✓ Plan: 19 acc, Tiempo: 0.000s
+
+======================================================================
+Evaluando layout: warehouseRescue (complejidad: large)
+======================================================================
+  Dimensiones: 15×12
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 31 acc, Estados: 11428, Tiempo: 18.877s
+
+  backwardSearch... ✓ Plan: 31 acc, Estados: 31, Tiempo: 0.094s
+
+  aStarPlanner_ignorePreconditions... SALTADO (combinación muy costosa)
+
+  aStarPlanner_ignoreDeleteLists... SALTADO (combinación muy costosa)
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 31 acc, Estados: 11428, Tiempo: 18.935s
+
+  hierarchicalSearch_HTN... ✓ Plan: 31 acc, Tiempo: 0.001s
+
+======================================================================
+Evaluando layout: mediumRescue (complejidad: medium)
+======================================================================
+  Dimensiones: 12×12
+  Pacientes: 1
+  Suministros: 1
+
+  forwardBFS... ✓ Plan: 32 acc, Estados: 6141, Tiempo: 5.169s
+
+  backwardSearch... ✓ Plan: 32 acc, Estados: 116, Tiempo: 0.054s
+
+  aStarPlanner_ignorePreconditions... SALTADO (combinación muy costosa)
+
+  aStarPlanner_ignoreDeleteLists... SALTADO (combinación muy costosa)
+
+  aStarPlanner_nullHeuristic... ✓ Plan: 32 acc, Estados: 6141, Tiempo: 5.162s
+
+  hierarchicalSearch_HTN... ✓ Plan: 32 acc, Tiempo: 0.000s
+
+======================================================================
+Evaluando layout: tinyMulti (complejidad: small)
+======================================================================
+  Dimensiones: 7×7
+  Pacientes: 2
+  Suministros: 2
+
+  forwardBFS... ⏱ TIMEOUT (30s), Estados: 188583
+
+  backwardSearch... ✗ None
+
+  aStarPlanner_ignorePreconditions... ⏱ TIMEOUT (30s), Estados: 2835
+
+  aStarPlanner_ignoreDeleteLists... ⏱ TIMEOUT (30s), Estados: 2821
+
+  aStarPlanner_nullHeuristic... ⏱ TIMEOUT (30s), Estados: 217219
+
+  hierarchicalSearch_HTN... ✓ Plan: 31 acc, Tiempo: 0.001s
+
+======================================================================
+Evaluando layout: duoRescue (complejidad: medium)
+======================================================================
+  Dimensiones: 8×8
+  Pacientes: 2
+  Suministros: 2
+
+  forwardBFS... ⏱ TIMEOUT (60s), Estados: 213110
+
+  backwardSearch... ✗ None
+
+  aStarPlanner_ignorePreconditions... SALTADO (combinación muy costosa)
+
+  aStarPlanner_ignoreDeleteLists... SALTADO (combinación muy costosa)
+
+  aStarPlanner_nullHeuristic... ⏱ TIMEOUT (60s), Estados: 248188
+
+  hierarchicalSearch_HTN... ✓ Plan: 28 acc, Tiempo: 0.000s
+
+======================================================================
+GUARDANDO RESULTADOS
+======================================================================
+
+✓ JSON: resultados_punto_6.json
+✓ CSV: resultados_punto_6.csv
+
+======================================================================
+RESUMEN
+======================================================================
+
+Total: 48
+  Exitosas: 31 (64.6%)
+  Timeouts: 8 (16.7%)
+  Saltadas: 7 (14.6%)
+  Fallidas: 10 (20.8%)
+
+Tiempo promedio por algoritmo (solo exitosos):
+  hierarchicalSearch_HTN                    :   0.000s  (estados:      0.0)
+  backwardSearch                            :   0.393s  (estados:   5363.5)
+  aStarPlanner_nullHeuristic                :   6.101s  (estados:   5761.8)
+  forwardBFS                                :   6.117s  (estados:   5761.8)
+  aStarPlanner_ignoreDeleteLists            :  12.397s  (estados:    674.3)
+  aStarPlanner_ignorePreconditions          :  12.834s  (estados:    784.0)
+
+======================================================================
+BENCHMARK COMPLETADO
+======================================================================
+
+Próximo paso: ejecutar generate_graphs.py

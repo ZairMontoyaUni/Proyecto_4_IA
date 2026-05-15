@@ -64,13 +64,24 @@ Thumbs.db
 
 # Log files
 *.log
+# Exception: keep specific benchmark log
+!benchmark_output.log
 
 # Benchmark and output files
 benchmark_*.py
+# Exception: keep specific benchmark script
+!benchmark_punto_6_v2.py
+
 generate_graphs.py
+# Exception: keep graph generation script
+!generate_graphs.py
+
 graficas_*/
 resultados_*.csv
 resultados_*.json
+# Exception: keep specific results file
+!resultados_punto_6.json
+
 resultados_*.md
 
 # Temporary markdown files for analysis
